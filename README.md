@@ -1,7 +1,22 @@
 # 🚛 DOT Hours Tracker
 
+[![Download APK](https://img.shields.io/badge/Download-APK-3b82f6?style=for-the-badge&logo=android)](https://github.com/elielfelix/Driver-Hours-Tracker/releases/latest/download/DOT-Hours-Tracker-v1.0.0.apk)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
+
 An open-source Flutter app (Android + Web) for truck drivers to track on-duty
 work hours against DOT Hours-of-Service limits.
+
+## 📥 Download
+
+Get the latest Android APK from the **[Releases page](https://github.com/elielfelix/Driver-Hours-Tracker/releases/latest)** —
+no Google Play account needed.
+
+1. Go to [Releases](https://github.com/elielfelix/Driver-Hours-Tracker/releases/latest)
+2. Download the `.apk` file under **Assets**
+3. On your Android phone, open the downloaded file (you may need to allow
+   **"Install from unknown sources"** for your browser/file manager, since
+   this isn't distributed via the Play Store)
+4. Tap **Install**
 
 Log a **Start** and **End** time for each work session, subtract any **Break**
 minutes, and the app totals your on-duty hours per day and per week —
