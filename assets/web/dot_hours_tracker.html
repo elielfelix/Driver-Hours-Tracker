@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DOT Hours Tracker</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { 
+    margin: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+    background: #0b1120; color: #e2e8f0; padding-bottom: 60px;
+  }
+  .header { 
+    background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%); 
+    padding: 18px 16px; text-align: center; border-bottom: 1px solid #1e3a5f;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header h1 { margin: 0; font-size: 20px; font-weight: 700; color: #f8fafc; }
+  .header .sub { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+  .help-btn {
+    position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
+    width: 30px; height: 30px; border-radius: 50%; border: 1px solid #3b82f6;
+    background: #1e3a5f; color: #93c5fd; font-size: 15px; font-weight: 700;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+  }
+  .help-btn:active { background: #2563eb; color: white; }
+  .info-panel {
+    max-height: 0; overflow: hidden; transition: max-height 0.35s ease;
+    background: #0f172a; border-bottom: 1px solid #1e293b;
+  }
+  .info-panel.open { max-height: 900px; }
+  .info-panel-inner { padding: 16px; font-size: 13px; color: #cbd5e1; line-height: 1.6; }
+  .info-panel-inner h3 { margin: 0 0 8px; font-size: 14px; color: #f8fafc; }
+  .info-panel-inner p { margin: 0 0 12px; }
+  .info-panel-inner ul { margin: 0 0 12px; padding-left: 18px; }
+  .info-panel-inner li { margin-bottom: 6px; }
+  .info-panel-inner strong { color: #93c5fd; }
+
+  .disclaimer-bar {
+    padding: 10px 16px; background: #3f1e1e; border-bottom: 1px solid #5c2626;
+    font-size: 11px; color: #fca5a5; line-height: 1.5; text-align: center;
+  }
+
+  .week-bar { padding: 14px 16px; background: #0f172a; border-bottom: 1px solid #1e293b; }
+  .week-bar-label { display: flex; justify-content: space-between; font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
+  .week-track { height: 24px; background: #1e293b; border-radius: 12px; overflow: hidden; position: relative; }
+  .week-fill { height: 100%; border-radius: 12px; transition: width 0.4s ease; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #0f172a; }
+  .week-fill.green { background: linear-gradient(90deg, #22c55e, #4ade80); }
+  .week-fill.yellow { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+  .week-fill.red { background: linear-gradient(90deg, #ef4444, #f87171); }
+
+  .summary-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 14px 16px; }
+  .summary-card { background: #1e293b; border-radius: 12px; padding: 12px 6px; text-align: center; }
+  .summary-card .label { font-size: 10px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .summary-card .value { font-size: 24px; font-weight: 800; }
+  .summary-card .value.green { color: #22c55e; }
+  .summary-card .value.yellow { color: #f59e0b; }
+  .summary-card .value.red { color: #ef4444; }
+  .summary-card .sub { font-size: 11px; color: #64748b; margin-top: 4px; }
+
+  .day-section { margin: 10px 16px; background: #1e293b; border-radius: 14px; overflow: hidden; }
+  .day-header { 
+    display: flex; justify-content: space-between; align-items: center; 
+    padding: 14px 16px; cursor: pointer; border-left: 4px solid #334155; transition: all 0.2s;
+  }
+  .day-header.ok { border-left-color: #22c55e; }
+  .day-header.warn { border-left-color: #f59e0b; }
+  .day-header.viol { border-left-color: #ef4444; background: #3f1e1e; }
+  .day-header.active { border-left-color: #3b82f6; }
+  .day-name { font-weight: 700; font-size: 15px; color: #f1f5f9; }
+  .day-total { font-size: 18px; font-weight: 800; color: #e2e8f0; }
+  .day-total.viol { color: #f87171; }
+  .day-total.warn { color: #fbbf24; }
+  .day-arrow { font-size: 18px; color: #64748b; transition: transform 0.2s; margin-left: 8px; }
+  .day-arrow.open { transform: rotate(180deg); }
+  .day-hint { font-size: 13px; color: #60a5fa; font-weight: 600; font-style: italic; margin-right: 8px; white-space: nowrap; }
+  .day-badge { font-size: 10px; padding: 3px 8px; border-radius: 10px; font-weight: 700; margin-left: 8px; }
+  .day-badge.active { background: #1e3a5f; color: #60a5fa; }
+  .day-badge.done { background: #1e3e1e; color: #4ade80; }
+
+  .day-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; background: #0f172a; }
+  .day-body.open { max-height: 1000px; }
+
+  .entry-row { padding: 12px 16px; border-bottom: 1px solid #1e293b; }
+  .entry-row:last-child { border-bottom: none; }
+  .entry-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .entry-label { font-size: 11px; color: #64748b; font-weight: 600; }
+  .entry-status { font-size: 10px; padding: 2px 8px; border-radius: 8px; font-weight: 700; }
+  .entry-status.waiting { background: #1e3a5f; color: #60a5fa; }
+  .entry-status.done { background: #1e3e1e; color: #4ade80; }
+  .time-row { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .time-row .time-label { font-size: 11px; color: #94a3b8; width: 36px; }
+  .time-input { 
+    width: 65px; padding: 8px; border: 1px solid #334155; border-radius: 8px; 
+    background: #0b1120; color: #f1f5f9; font-size: 14px; text-align: center; font-weight: 600;
+  }
+  .time-input:focus { outline: none; border-color: #3b82f6; }
+  .time-input.has-value { border-color: #22c55e; }
+  .time-input.empty { border-color: #f59e0b; }
+  .time-to { font-size: 12px; color: #64748b; padding: 0 4px; }
+  .break-input { width: 50px; }
+  .break-label { font-size: 11px; color: #64748b; }
+  .entry-duration { font-size: 12px; color: #4ade80; font-weight: 700; margin-left: auto; }
+  .entry-duration.warn { color: #fbbf24; }
+  .entry-duration.viol { color: #f87171; }
+  .entry-delete { 
+    background: #3f1e1e; color: #f87171; border: none; border-radius: 8px; 
+    padding: 6px 10px; font-size: 11px; cursor: pointer; font-weight: 600; margin-left: 6px;
+  }
+  .entry-delete:active { background: #ef4444; color: white; }
+
+  .add-entry-btn { 
+    display: flex; align-items: center; justify-content: center; gap: 6px; 
+    width: calc(100% - 32px); margin: 10px 16px; padding: 12px; 
+    border: 2px dashed #334155; border-radius: 10px; background: transparent; 
+    color: #64748b; font-size: 14px; font-weight: 600; cursor: pointer; 
+  }
+  .add-entry-btn:active { border-color: #3b82f6; color: #3b82f6; }
+
+  .done-btn { 
+    display: flex; align-items: center; justify-content: center; gap: 8px; 
+    width: calc(100% - 32px); margin: 0 16px 12px; padding: 14px; 
+    border: none; border-radius: 10px; background: #1e3a5f; 
+    color: #93c5fd; font-size: 14px; font-weight: 700; cursor: pointer; 
+    transition: all 0.2s;
+  }
+  .done-btn:active { background: #2563eb; color: white; }
+  .done-btn.done { background: #1e3e1e; color: #4ade80; }
+  .done-btn.done:active { background: #22c55e; color: white; }
+
+  .day-availability { 
+    margin: 0 16px 12px; padding: 14px; background: linear-gradient(135deg, #1e3a5f, #0f172a); 
+    border-radius: 12px; border: 1px solid #1e3a5f; display: none;
+  }
+  .day-availability.show { display: block; }
+  .day-avail-title { font-size: 12px; font-weight: 700; color: #cbd5e1; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .day-avail-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-bottom: 8px; }
+  .day-avail-row .al { color: #94a3b8; }
+  .day-avail-row .av { font-weight: 700; font-size: 14px; }
+  .day-avail-row .av.ok { color: #4ade80; }
+  .day-avail-row .av.warn { color: #fbbf24; }
+  .day-avail-row .av.viol { color: #f87171; }
+  .day-avail-note { font-size: 11px; color: #64748b; margin-top: 6px; line-height: 1.5; }
+
+  .day-status-msg { padding: 8px 16px 12px; font-size: 12px; font-weight: 600; }
+  .day-status-msg.ok { color: #4ade80; }
+  .day-status-msg.warn { color: #fbbf24; }
+  .day-status-msg.viol { color: #f87171; }
+
+  .export-box { margin: 12px 16px; padding: 16px; background: #1e293b; border-radius: 14px; }
+  .export-title { font-size: 13px; font-weight: 700; color: #cbd5e1; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .export-row { display: flex; gap: 10px; }
+  .export-btn { 
+    flex: 1; padding: 12px; border: 1px solid #334155; border-radius: 10px; 
+    background: #0f172a; color: #e2e8f0; font-size: 13px; font-weight: 700; 
+    cursor: pointer; text-align: center; transition: all 0.2s;
+  }
+  .export-btn:active { background: #1e3a5f; border-color: #3b82f6; }
+  .export-btn .icon { font-size: 18px; display: block; margin-bottom: 4px; }
+
+  .reset-box { margin: 12px 16px; padding: 16px; background: #1e293b; border-radius: 14px; }
+  .reset-title { font-size: 13px; font-weight: 700; color: #cbd5e1; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .reset-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; margin-bottom: 8px; }
+  .reset-row .rl { color: #94a3b8; }
+  .reset-row .rv { font-weight: 700; }
+  .reset-row .rv.ok { color: #4ade80; }
+  .reset-row .rv.warn { color: #fbbf24; }
+  .reset-row .rv.viol { color: #f87171; }
+
+  .bottom-btns { display: flex; gap: 10px; padding: 0 16px; margin-top: 14px; }
+  .btn { flex: 1; padding: 14px; border: none; border-radius: 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .btn-primary { background: #3b82f6; color: white; }
+  .btn-primary:active { background: #2563eb; }
+  .btn-secondary { background: #334155; color: #e2e8f0; }
+  .btn-secondary:active { background: #475569; }
+  .btn-danger { background: #3f1e1e; color: #f87171; }
+  .btn-danger:active { background: #ef4444; color: white; }
+
+  .legend { margin: 14px 16px; padding: 14px; background: #0f172a; border-radius: 10px; font-size: 11px; color: #64748b; line-height: 1.7; border: 1px solid #1e293b; }
+  .legend strong { color: #94a3b8; }
+
+  .toast { 
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); 
+    background: #1e293b; color: #e2e8f0; padding: 12px 24px; border-radius: 10px; 
+    font-size: 13px; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,0.5); 
+    z-index: 1000; opacity: 0; transition: opacity 0.3s; pointer-events: none; 
+  }
+  .toast.show { opacity: 1; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: #0b1120; }
+  ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🚛 DOT Hours Tracker</h1>
+  <div class="sub">Start & End times + Break minutes — auto-calculates on-duty hours</div>
+  <button class="help-btn" onclick="toggleInfoPanel()" aria-label="About this app">?</button>
+</div>
+
+<div class="disclaimer-bar">
+  ⚠️ For personal reference only. This calculator is not a substitute for official logs, ELDs, or regulatory compliance tools. Always verify hours with your employer and follow applicable laws.
+</div>
+
+<div class="info-panel" id="info-panel">
+  <div class="info-panel-inner">
+    <h3>What this app does</h3>
+    <p>This tracker helps drivers keep an eye on their on-duty hours against DOT Hours-of-Service limits. You log a <strong>Start</strong> and <strong>End</strong> time for each work session, subtract any <strong>Break</strong> minutes, and the app totals it up for the day and the week.</p>
+    <h3>How to use it</h3>
+    <ul>
+      <li>Tap a day (Monday–Sunday) to expand it and enter your session times.</li>
+      <li>Add more than one session per day with <strong>"+ Add Another Session"</strong> if you clocked in/out more than once.</li>
+      <li>Enter <strong>Break</strong> minutes for that session — it's automatically subtracted from your on-duty total.</li>
+      <li>Tap <strong>"I'm Done for Today"</strong> to lock the day and see when you're legally allowed to clock in next.</li>
+      <li>Use <strong>Export</strong> at the bottom to save a CSV, a text report, or share/copy a quick summary.</li>
+    </ul>
+    <h3>What the limits mean</h3>
+    <ul>
+      <li><strong>14 hrs</strong> — max on-duty window in a day.</li>
+      <li><strong>11 hrs</strong> — max on-duty hours in a day (driving-focused, but this app tracks combined on-duty time since many drivers do both driving and other duties in the same shift).</li>
+      <li><strong>70 hrs</strong> — weekly on-duty cap.</li>
+      <li><strong>10 hrs off / 34 hrs reset</strong> — minimum rest before you can clock back in.</li>
+    </ul>
+    <p style="color:#64748b; font-size:11px; margin-bottom:0;">⚠️ For personal reference only. This calculator is not a substitute for official logs, ELDs, or regulatory compliance tools. Always verify hours with your employer and follow applicable laws.</p>
+  </div>
+</div>
+
+<div class="week-bar">
+  <div class="week-bar-label"><span>Weekly Hours Used</span><span id="weekly-pct">0h 0m / 70 hrs</span></div>
+  <div class="week-track">
+    <div class="week-fill green" id="week-fill" style="width:0%"><span id="week-fill-text">0h 0m</span></div>
+  </div>
+</div>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="label">Total This Week</div>
+    <div class="value green" id="total-hrs">0h 0m</div>
+    <div class="sub">hours on duty</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Hours Remaining</div>
+    <div class="value green" id="remaining-hrs">70h 0m</div>
+    <div class="sub">before limit</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Days Done</div>
+    <div class="value green" id="days-done">0</div>
+    <div class="sub">completed</div>
+  </div>
+</div>
+
+<div id="days-container"></div>
+
+<div class="export-box">
+  <div class="export-title">📤 Export Weekly Data</div>
+  <div class="export-row">
+    <button class="export-btn" onclick="exportCSV()">
+      <span class="icon">📊</span>
+      CSV (Excel/Sheets)
+    </button>
+    <button class="export-btn" onclick="exportText()">
+      <span class="icon">📝</span>
+      Text Report
+    </button>
+    <button class="export-btn" onclick="shareText()">
+      <span class="icon">📲</span>
+      Share / Copy
+    </button>
+  </div>
+</div>
+
+<div class="reset-box">
+  <div class="reset-title">📋 Weekly Compliance</div>
+  <div class="reset-row"><span class="rl">Weekly Status:</span><span class="rv ok" id="weekly-status">Within 70-hr limit</span></div>
+  <div class="reset-row"><span class="rl">Highest Single Day:</span><span class="rv ok" id="max-day">—</span></div>
+  <div class="reset-row"><span class="rl">Days Over 14 Hrs:</span><span class="rv ok" id="days-over14">0</span></div>
+  <div class="reset-row"><span class="rl">Days Over 11 Hrs:</span><span class="rv ok" id="days-over11">0</span></div>
+</div>
+
+<div class="bottom-btns">
+  <button class="btn btn-secondary" onclick="loadExample()">Example</button>
+  <button class="btn btn-danger" onclick="clearAll()">Clear All</button>
+</div>
+
+<div class="legend">
+  <strong>How to use:</strong><br>
+  <span style="color:#60a5fa;">●</span> Enter <strong>Start</strong> and <strong>End</strong> times for each work session<br>
+  <span style="color:#fbbf24;">●</span> Add <strong>Break</strong> minutes (or leave at 0 if no break)<br>
+  <span style="color:#4ade80;">●</span> The app subtracts break time from your on-duty hours automatically<br>
+  <span style="color:#ef4444;">●</span> Tap <strong>"I'm Done for Today"</strong> to lock the day and see next-day availability<br><br>
+  <strong>Daily:</strong> Max 14 hrs on-duty | Max 11 hrs on-duty (driving) | 30-min break after 8 hrs on-duty<br>
+  <strong>Weekly:</strong> 70 hrs on-duty in any 8-day period<br>
+  <strong>Rest:</strong> 10 hrs off-duty minimum | 34 hrs for full reset
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const dayNames = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const dayIds = ['mon','tue','wed','thu','fri','sat','sun'];
+
+let data = loadData();
+let doneDays = loadDoneDays();
+
+function loadData() {
+  try {
+    const saved = localStorage.getItem('dot_hours_v7');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return dayIds.map(() => [{start:'',end:'',break:'0'}]);
+}
+
+function loadDoneDays() {
+  try {
+    const saved = localStorage.getItem('dot_done_days_v3');
+    if (saved) return JSON.parse(saved);
+  } catch(e) {}
+  return {};
+}
+
+function saveData() {
+  localStorage.setItem('dot_hours_v7', JSON.stringify(data));
+  localStorage.setItem('dot_done_days_v3', JSON.stringify(doneDays));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function parseTime(str) {
+  if (!str) return null;
+  str = str.trim().toUpperCase();
+  let ampm = null;
+  if (str.includes('AM')) { ampm = 'AM'; str = str.replace(/AM/gi,'').trim(); }
+  else if (str.includes('PM')) { ampm = 'PM'; str = str.replace(/PM/gi,'').trim(); }
+  let h, m;
+  if (str.includes(':')) {
+    let parts = str.split(':');
+    h = parseInt(parts[0]);
+    m = parseInt(parts[1]);
+  } else {
+    // No colon typed (e.g. "1430" or "630") — parse as HHMM/HMM instead of
+    // silently dropping the minutes, which previously turned "1430" into 14:00.
+    const digits = str.replace(/[^0-9]/g, '');
+    if (digits.length === 0) return null;
+    if (digits.length <= 2) {
+      h = parseInt(digits);
+      m = 0;
+    } else if (digits.length === 3) {
+      h = parseInt(digits.slice(0, 1));
+      m = parseInt(digits.slice(1));
+    } else {
+      h = parseInt(digits.slice(0, 2));
+      m = parseInt(digits.slice(2, 4));
+    }
+  }
+  if (isNaN(h)) h = 0;
+  if (isNaN(m)) m = 0;
+  if (ampm === 'PM' && h < 12) h += 12;
+  if (ampm === 'AM' && h === 12) h = 0;
+  if (!ampm && h >= 24) h = h % 24;
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+
+function formatTime(mins) {
+  if (mins === null || mins === undefined) return '—';
+  let h = Math.floor(mins / 60) % 24;
+  let m = mins % 60;
+  let ampm = h >= 12 ? 'PM' : 'AM';
+  let h12 = h % 12;
+  if (h12 === 0) h12 = 12;
+  let mStr = m < 10 ? '0' + m : m;
+  return h12 + ':' + mStr + ' ' + ampm;
+}
+
+function formatDuration(decimalHrs) {
+  if (!decimalHrs || decimalHrs <= 0) return '0h 0m';
+  // Round to whole minutes FIRST, then split into hours/minutes. Rounding
+  // after splitting could produce e.g. "1h 60m" for values like 1.999999999
+  // caused by floating-point addition of several durations.
+  const totalMins = Math.round(decimalHrs * 60);
+  const hrs = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  if (mins === 0) return hrs + 'h';
+  return hrs + 'h ' + mins + 'm';
+}
+
+function formatDurationDecimal(decimalHrs) {
+  if (!decimalHrs || decimalHrs <= 0) return '0.00';
+  return decimalHrs.toFixed(2);
+}
+
+function getEntryDuration(entry) {
+  const start = parseTime(entry.start);
+  const end = parseTime(entry.end);
+  if (start === null || end === null) return 0;
+  let dur = end - start;
+  if (dur < 0) dur += 24 * 60;
+  const breakMins = parseInt(entry.break) || 0;
+  dur = Math.max(0, dur - breakMins);
+  return dur / 60;
+}
+
+function getRawEntryDuration(entry) {
+  // Duration BEFORE subtracting break (for display)
+  const start = parseTime(entry.start);
+  const end = parseTime(entry.end);
+  if (start === null || end === null) return 0;
+  let dur = end - start;
+  if (dur < 0) dur += 24 * 60;
+  return dur / 60;
+}
+
+function getEntryState(entry) {
+  const start = parseTime(entry.start);
+  const end = parseTime(entry.end);
+  if (start === null && end === null) return 'empty';
+  if (start !== null && end === null) return 'waiting';
+  if (start !== null && end !== null) return 'done';
+  return 'empty';
+}
+
+function getDayTotal(dayIdx) {
+  let total = 0;
+  data[dayIdx].forEach(e => total += getEntryDuration(e));
+  return total;
+}
+
+function getDayBreakTotal(dayIdx) {
+  let total = 0;
+  data[dayIdx].forEach(e => total += (parseInt(e.break) || 0));
+  return total;
+}
+
+function getWeeklyTotal() {
+  let total = 0;
+  for (let i = 0; i < 7; i++) total += getDayTotal(i);
+  return total;
+}
+
+function getDoneDaysCount() {
+  let count = 0;
+  for (let i = 0; i < 7; i++) {
+    if (doneDays[dayIds[i]]) count++;
+  }
+  return count;
+}
+
+function getLastEndTime(dayIdx) {
+  let lastEnd = null;
+  data[dayIdx].forEach(e => {
+    const end = parseTime(e.end);
+    if (end !== null && (lastEnd === null || end > lastEnd)) lastEnd = end;
+  });
+  return lastEnd;
+}
+
+function addMinutes(timeMins, addMins) {
+  return (timeMins + addMins) % (24 * 60);
+}
+
+// Like addMinutes, but also returns how many calendar days later that time
+// falls. Needed because a 34-hour reset spans MORE than one calendar day,
+// so it can't always be labeled "tomorrow".
+function addMinutesWithDayOffset(timeMins, addMins) {
+  const total = timeMins + addMins;
+  return { time: total % (24 * 60), daysLater: Math.floor(total / (24 * 60)) };
+}
+
+function calc() {
+  let weeklyTotal = 0;
+  let maxDayVal = 0;
+  let maxDayName = '—';
+  let daysOver14 = 0;
+  let daysOver11 = 0;
+
+  for (let i = 0; i < 7; i++) {
+    const dayTotal = getDayTotal(i);
+    weeklyTotal += dayTotal;
+
+    const header = document.getElementById('header-' + dayIds[i]);
+    const totalEl = document.getElementById('daytotal-' + dayIds[i]);
+    const statusEl = document.getElementById('daystatus-' + dayIds[i]);
+    const badgeEl = document.getElementById('badge-' + dayIds[i]);
+    const doneBtn = document.getElementById('donebtn-' + dayIds[i]);
+
+    if (dayTotal > 0) {
+      if (dayTotal > maxDayVal) { maxDayVal = dayTotal; maxDayName = dayNames[i]; }
+      if (dayTotal > 14) daysOver14++;
+      if (dayTotal > 11) daysOver11++;
+    }
+
+    let hasWaiting = data[i].some(e => getEntryState(e) === 'waiting');
+    let hasDone = data[i].some(e => getEntryState(e) === 'done');
+    if (doneDays[dayIds[i]]) {
+      badgeEl.textContent = 'LOCKED';
+      badgeEl.className = 'day-badge done';
+    } else if (hasWaiting) {
+      badgeEl.textContent = 'ACTIVE';
+      badgeEl.className = 'day-badge active';
+    } else if (hasDone) {
+      badgeEl.textContent = 'DONE';
+      badgeEl.className = 'day-badge done';
+    } else {
+      badgeEl.textContent = '';
+      badgeEl.className = 'day-badge';
+    }
+
+    header.classList.remove('ok','warn','viol','active');
+    totalEl.classList.remove('ok','warn','viol');
+    statusEl.classList.remove('ok','warn','viol');
+
+    if (doneDays[dayIds[i]]) {
+      totalEl.textContent = formatDuration(dayTotal);
+      totalEl.classList.add('ok');
+      header.classList.add('ok');
+      statusEl.textContent = '🔒 Day locked — availability shown below';
+      statusEl.classList.add('ok');
+      if (doneBtn) { doneBtn.textContent = '🔓 Unlock Day (Edit)'; doneBtn.classList.add('done'); }
+    } else if (dayTotal === 0) {
+      totalEl.textContent = '0h';
+      totalEl.classList.add('ok');
+      if (hasWaiting) {
+        header.classList.add('active');
+        statusEl.textContent = '⏳ Waiting for end time...';
+        statusEl.classList.add('ok');
+      } else {
+        header.classList.add('ok');
+        statusEl.textContent = '';
+      }
+      if (doneBtn) { doneBtn.textContent = "✅ I'm Done for Today"; doneBtn.classList.remove('done'); }
+    } else if (dayTotal > 14) {
+      totalEl.textContent = formatDuration(dayTotal);
+      totalEl.classList.add('viol');
+      header.classList.add('viol');
+      statusEl.textContent = '❌ VIOLATION: Over 14 hrs!';
+      statusEl.classList.add('viol');
+      if (doneBtn) { doneBtn.textContent = "✅ I'm Done for Today"; doneBtn.classList.remove('done'); }
+    } else if (dayTotal > 11) {
+      totalEl.textContent = formatDuration(dayTotal);
+      totalEl.classList.add('warn');
+      header.classList.add('warn');
+      statusEl.textContent = '⚠️ Over 11 hrs on-duty';
+      statusEl.classList.add('warn');
+      if (doneBtn) { doneBtn.textContent = "✅ I'm Done for Today"; doneBtn.classList.remove('done'); }
+    } else {
+      totalEl.textContent = formatDuration(dayTotal);
+      totalEl.classList.add('ok');
+      header.classList.add('ok');
+      statusEl.textContent = '✅ Within limits';
+      statusEl.classList.add('ok');
+      if (doneBtn) { doneBtn.textContent = "✅ I'm Done for Today"; doneBtn.classList.remove('done'); }
+    }
+
+    updateDayAvailability(i);
+  }
+
+  const pct = Math.min((weeklyTotal / 70) * 100, 100);
+  const fill = document.getElementById('week-fill');
+  const fillText = document.getElementById('week-fill-text');
+  const pctLabel = document.getElementById('weekly-pct');
+  fill.style.width = pct + '%';
+  fillText.textContent = formatDuration(weeklyTotal);
+  pctLabel.textContent = formatDuration(weeklyTotal) + ' / 70 hrs';
+  fill.className = 'week-fill ' + (weeklyTotal > 70 ? 'red' : weeklyTotal > 60 ? 'yellow' : 'green');
+
+  const totalEl = document.getElementById('total-hrs');
+  const remEl = document.getElementById('remaining-hrs');
+  const doneEl = document.getElementById('days-done');
+  totalEl.textContent = formatDuration(weeklyTotal);
+  const remaining = Math.max(0, 70 - weeklyTotal);
+  remEl.textContent = formatDuration(remaining);
+  doneEl.textContent = getDoneDaysCount();
+
+  const colorClass = weeklyTotal > 70 ? 'red' : weeklyTotal > 60 ? 'yellow' : 'green';
+  totalEl.className = 'value ' + colorClass;
+  remEl.className = 'value ' + colorClass;
+
+  document.getElementById('max-day').textContent = maxDayVal > 0 ? maxDayName + ' (' + formatDuration(maxDayVal) + ')' : '—';
+  document.getElementById('days-over14').textContent = daysOver14;
+  document.getElementById('days-over11').textContent = daysOver11;
+
+  const wStatus = document.getElementById('weekly-status');
+  if (weeklyTotal > 70) {
+    wStatus.textContent = '❌ OVER 70-HR LIMIT';
+    wStatus.className = 'rv viol';
+  } else if (weeklyTotal > 60) {
+    wStatus.textContent = '⚠️ Approaching limit';
+    wStatus.className = 'rv warn';
+  } else {
+    wStatus.textContent = '✅ Within 70-hr limit';
+    wStatus.className = 'rv ok';
+  }
+
+  document.getElementById('days-over14').className = 'rv ' + (daysOver14 > 0 ? 'viol' : 'ok');
+  document.getElementById('days-over11').className = 'rv ' + (daysOver11 > 0 ? 'warn' : 'ok');
+
+  saveData();
+}
+
+function updateDayAvailability(dayIdx) {
+  const availBox = document.getElementById('avail-' + dayIds[dayIdx]);
+  if (!availBox) return;
+
+  if (!doneDays[dayIds[dayIdx]]) {
+    availBox.classList.remove('show');
+    return;
+  }
+
+  availBox.classList.add('show');
+  const dayTotal = getDayTotal(dayIdx);
+  const lastEnd = getLastEndTime(dayIdx);
+
+  const lastOutEl = document.getElementById('avail-last-' + dayIds[dayIdx]);
+  const minRestEl = document.getElementById('avail-rest-' + dayIds[dayIdx]);
+  const earliestEl = document.getElementById('avail-earliest-' + dayIds[dayIdx]);
+  const fullResetEl = document.getElementById('avail-full-' + dayIds[dayIdx]);
+  const noteEl = document.getElementById('avail-note-' + dayIds[dayIdx]);
+
+  if (lastEnd === null) {
+    lastOutEl.textContent = '—';
+    minRestEl.textContent = '10 hrs';
+    earliestEl.textContent = '—';
+    fullResetEl.textContent = '—';
+    noteEl.textContent = 'No completed sessions with end times.';
+    return;
+  }
+
+  lastOutEl.textContent = formatTime(lastEnd);
+
+  let restHours = 10;
+  let restLabel = '10 hrs (standard)';
+  let restClass = 'ok';
+
+  if (dayTotal > 14) {
+    restHours = 34;
+    restLabel = '34 hrs (required)';
+    restClass = 'viol';
+  } else if (dayTotal > 11) {
+    restHours = 10;
+    restLabel = '10 hrs (consider 34-hr reset)';
+    restClass = 'warn';
+  }
+
+  minRestEl.textContent = restLabel;
+  minRestEl.className = 'av ' + restClass;
+
+  const earliest = addMinutesWithDayOffset(lastEnd, restHours * 60);
+  const earliestDayName = dayNames[(dayIdx + earliest.daysLater) % 7];
+  earliestEl.textContent = formatTime(earliest.time) + ' (' + earliestDayName + ')';
+  earliestEl.className = 'av ' + restClass;
+
+  const fullReset = addMinutesWithDayOffset(lastEnd, 34 * 60);
+  const resetDayName = dayNames[(dayIdx + fullReset.daysLater) % 7];
+  fullResetEl.textContent = formatTime(fullReset.time) + ' (' + resetDayName + ')';
+  fullResetEl.className = 'av ok';
+
+  if (dayTotal > 14) {
+    noteEl.innerHTML = '<strong style="color:#f87171;">You worked over 14 hours.</strong> A 34-hour consecutive reset is required before you can drive again.';
+  } else if (dayTotal > 11) {
+    noteEl.innerHTML = 'You worked over 11 hours. A <strong>34-hour reset</strong> is recommended if you want a fresh 70-hour clock.';
+  } else {
+    noteEl.textContent = 'Standard 10-hour rest required. You can also take a 34-hour reset anytime.';
+  }
+}
+
+function toggleInfoPanel() {
+  const panel = document.getElementById('info-panel');
+  panel.classList.toggle('open');
+}
+
+function toggleDay(dayIdx) {
+  const body = document.getElementById('body-' + dayIds[dayIdx]);
+  const arrow = document.getElementById('arrow-' + dayIds[dayIdx]);
+  const hint = document.getElementById('hint-' + dayIds[dayIdx]);
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+  if (hint) hint.textContent = body.classList.contains('open') ? 'Tap to collapse' : 'Tap to expand';
+}
+
+function toggleDone(dayIdx) {
+  const id = dayIds[dayIdx];
+  if (doneDays[id]) {
+    delete doneDays[id];
+    showToast(dayNames[dayIdx] + ' unlocked — you can edit now');
+  } else {
+    doneDays[id] = true;
+    showToast(dayNames[dayIdx] + ' locked — availability shown below');
+  }
+  calc();
+}
+
+function addEntry(dayIdx) {
+  data[dayIdx].push({start:'',end:'',break:'0'});
+  renderDayBody(dayIdx);
+  calc();
+  showToast('Session added — enter start time');
+}
+
+function removeEntry(dayIdx, entryIdx) {
+  if (data[dayIdx].length <= 1) {
+    data[dayIdx] = [{start:'',end:'',break:'0'}];
+  } else {
+    data[dayIdx].splice(entryIdx, 1);
+  }
+  renderDayBody(dayIdx);
+  calc();
+}
+
+function updateEntry(dayIdx, entryIdx, field, value) {
+  // For break field, only allow numbers
+  if (field === 'break') {
+    value = value.replace(/[^0-9]/g, '');
+    const num = parseInt(value);
+    if (num > 300) value = '300'; // cap at 300 minutes
+  }
+  data[dayIdx][entryIdx][field] = value;
+  calc();
+  const state = getEntryState(data[dayIdx][entryIdx]);
+  const statusEl = document.getElementById('estatus-' + dayIds[dayIdx] + '-' + entryIdx);
+  const startIn = document.getElementById('start-' + dayIds[dayIdx] + '-' + entryIdx);
+  const endIn = document.getElementById('end-' + dayIds[dayIdx] + '-' + entryIdx);
+  const durEl = document.getElementById('dur-' + dayIds[dayIdx] + '-' + entryIdx);
+  const netEl = document.getElementById('net-' + dayIds[dayIdx] + '-' + entryIdx);
+
+  if (statusEl) {
+    if (state === 'waiting') { statusEl.textContent = '⏳ WAITING FOR END TIME'; statusEl.className = 'entry-status waiting'; }
+    else if (state === 'done') { statusEl.textContent = '✅ COMPLETED'; statusEl.className = 'entry-status done'; }
+    else { statusEl.textContent = ''; statusEl.className = 'entry-status'; }
+  }
+
+  if (startIn) startIn.className = 'time-input ' + (data[dayIdx][entryIdx].start ? 'has-value' : 'empty');
+  if (endIn) endIn.className = 'time-input ' + (data[dayIdx][entryIdx].end ? 'has-value' : 'empty');
+
+  if (field === 'break') {
+    const breakIn = document.getElementById('break-' + dayIds[dayIdx] + '-' + entryIdx);
+    // Reflect the sanitized/capped value back into the field itself — previously
+    // typing e.g. "3000" or letters left the displayed text out of sync with
+    // the value actually being used in calculations.
+    if (breakIn && breakIn.value !== value) breakIn.value = value;
+    if (breakIn) breakIn.className = 'time-input break-input ' + (value && value !== '0' ? 'has-value' : '');
+  }
+
+  const rawDur = getRawEntryDuration(data[dayIdx][entryIdx]);
+  const netDur = getEntryDuration(data[dayIdx][entryIdx]);
+  if (durEl) {
+    durEl.textContent = rawDur > 0 ? formatDuration(rawDur) : '';
+  }
+  if (netEl) {
+    netEl.textContent = netDur > 0 ? '= ' + formatDuration(netDur) + ' net' : '';
+    netEl.className = 'entry-duration ' + (netDur > 14 ? 'viol' : netDur > 11 ? 'warn' : 'ok');
+  }
+}
+
+function renderDayBody(dayIdx) {
+  const container = document.getElementById('body-' + dayIds[dayIdx]);
+  let html = '';
+  data[dayIdx].forEach((entry, ei) => {
+    const state = getEntryState(entry);
+    const rawDur = getRawEntryDuration(entry);
+    const netDur = getEntryDuration(entry);
+    let statusText = '';
+    let statusClass = '';
+    if (state === 'waiting') { statusText = '⏳ WAITING FOR END TIME'; statusClass = 'waiting'; }
+    else if (state === 'done') { statusText = '✅ COMPLETED'; statusClass = 'done'; }
+
+    html += `
+      <div class="entry-row">
+        <div class="entry-header">
+          <span class="entry-label">Work Session ${ei + 1}</span>
+          <span class="entry-status ${statusClass}" id="estatus-${dayIds[dayIdx]}-${ei}">${statusText}</span>
+        </div>
+        <div class="time-row">
+          <span class="time-label">Start</span>
+          <input type="text" class="time-input ${entry.start ? 'has-value' : 'empty'}" 
+            placeholder="6:00 AM" id="start-${dayIds[dayIdx]}-${ei}"
+            value="${entry.start}" 
+            oninput="updateEntry(${dayIdx},${ei},'start',this.value)">
+          <span class="time-to">→</span>
+          <span class="time-label">End</span>
+          <input type="text" class="time-input ${entry.end ? 'has-value' : 'empty'}" 
+            placeholder="3:00 PM" id="end-${dayIds[dayIdx]}-${ei}"
+            value="${entry.end}" 
+            oninput="updateEntry(${dayIdx},${ei},'end',this.value)">
+          <span class="time-to">|</span>
+          <span class="break-label">Break</span>
+          <input type="text" class="time-input break-input ${entry.break && entry.break !== '0' ? 'has-value' : ''}" 
+            placeholder="0" id="break-${dayIds[dayIdx]}-${ei}"
+            value="${entry.break}" 
+            oninput="updateEntry(${dayIdx},${ei},'break',this.value)">
+          <span class="break-label">min</span>
+        </div>
+        <div class="time-row" style="justify-content:flex-end;gap:10px;">
+          <span class="entry-duration" id="dur-${dayIds[dayIdx]}-${ei}">${rawDur > 0 ? formatDuration(rawDur) + ' gross' : ''}</span>
+          <span class="entry-duration ok" id="net-${dayIds[dayIdx]}-${ei}">${netDur > 0 ? '= ' + formatDuration(netDur) + ' net' : ''}</span>
+          <button class="entry-delete" onclick="event.stopPropagation();removeEntry(${dayIdx},${ei})">✕</button>
+        </div>
+      </div>
+    `;
+  });
+  html += `<div class="day-status-msg" id="daystatus-${dayIds[dayIdx]}"></div>`;
+  container.innerHTML = html;
+}
+
+function renderAll() {
+  const container = document.getElementById('days-container');
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    html += `
+      <div class="day-section">
+        <div class="day-header ok" id="header-${dayIds[i]}" onclick="toggleDay(${i})">
+          <div style="display:flex;align-items:center;">
+            <span class="day-name">${dayNames[i]}</span>
+            <span class="day-badge" id="badge-${dayIds[i]}"></span>
+          </div>
+          <div style="display:flex;align-items:center;">
+            <span class="day-hint" id="hint-${dayIds[i]}">Tap to expand</span>
+            <span class="day-total ok" id="daytotal-${dayIds[i]}">0h</span>
+            <span class="day-arrow" id="arrow-${dayIds[i]}">▼</span>
+          </div>
+        </div>
+        <div class="day-body" id="body-${dayIds[i]}"></div>
+        <button class="done-btn" id="donebtn-${dayIds[i]}" onclick="event.stopPropagation();toggleDone(${i})">
+          ✅ I'm Done for Today
+        </button>
+        <div class="day-availability" id="avail-${dayIds[i]}">
+          <div class="day-avail-title">⏰ Next Day Availability</div>
+          <div class="day-avail-row"><span class="al">Last Clock-Out:</span><span class="av ok" id="avail-last-${dayIds[i]}">—</span></div>
+          <div class="day-avail-row"><span class="al">Minimum Rest Required:</span><span class="av ok" id="avail-rest-${dayIds[i]}">10 hrs</span></div>
+          <div class="day-avail-row"><span class="al">Earliest You Can Clock In:</span><span class="av ok" id="avail-earliest-${dayIds[i]}">—</span></div>
+          <div class="day-avail-row"><span class="al">34-Hour Full Reset Complete:</span><span class="av ok" id="avail-full-${dayIds[i]}">—</span></div>
+          <div class="day-avail-note" id="avail-note-${dayIds[i]}"></div>
+        </div>
+        <button class="add-entry-btn" onclick="event.stopPropagation();addEntry(${i})">
+          + Add Another Session
+        </button>
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+  for (let i = 0; i < 7; i++) renderDayBody(i);
+}
+
+// ==================== EXPORT FUNCTIONS ====================
+
+function getWeekDateRange() {
+  const today = new Date();
+  const dayOfWeek = today.getDay();
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((dayOfWeek + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (d) => (d.getMonth()+1) + '/' + d.getDate() + '/' + d.getFullYear();
+  return fmt(monday) + ' - ' + fmt(sunday);
+}
+
+function buildExportData() {
+  let rows = [];
+  let weeklyTotal = 0;
+  let maxDayVal = 0;
+  let maxDayName = '';
+  let daysOver14 = 0;
+  let daysOver11 = 0;
+
+  for (let i = 0; i < 7; i++) {
+    const dayTotal = getDayTotal(i);
+    const dayBreak = getDayBreakTotal(i);
+    weeklyTotal += dayTotal;
+    if (dayTotal > maxDayVal) { maxDayVal = dayTotal; maxDayName = dayNames[i]; }
+    if (dayTotal > 14) daysOver14++;
+    if (dayTotal > 11) daysOver11++;
+
+    data[i].forEach((entry, ei) => {
+      const dur = getEntryDuration(entry);
+      const rawDur = getRawEntryDuration(entry);
+      rows.push({
+        day: dayNames[i],
+        session: ei + 1,
+        start: entry.start || '—',
+        end: entry.end || '—',
+        breakMin: entry.break || '0',
+        grossDuration: rawDur > 0 ? formatDuration(rawDur) : '0h 0m',
+        netDuration: dur > 0 ? formatDuration(dur) : '0h 0m',
+        netDecimal: dur > 0 ? formatDurationDecimal(dur) : '0.00',
+        dayTotal: ei === data[i].length - 1 ? formatDuration(dayTotal) : '',
+        dayBreak: ei === data[i].length - 1 ? dayBreak + ' min' : '',
+        locked: doneDays[dayIds[i]] ? 'Yes' : 'No'
+      });
+    });
+  }
+
+  return {
+    rows, weeklyTotal, maxDayVal, maxDayName, daysOver14, daysOver11,
+    remaining: Math.max(0, 70 - weeklyTotal), weekRange: getWeekDateRange()
+  };
+}
+
+function exportCSV() {
+  const d = buildExportData();
+  if (d.weeklyTotal === 0) { showToast('No data to export'); return; }
+
+  let csv = 'DOT Hours of Service Log\n';
+  csv += 'Week: ' + d.weekRange + '\n\n';
+  csv += 'Day,Session,Start Time,End Time,Break (min),Gross Duration,Net Duration,Day Total,Day Break,Locked\n';
+
+  d.rows.forEach(r => {
+    csv += `"${r.day}",${r.session},"${r.start}","${r.end}",${r.breakMin},"${r.grossDuration}","${r.netDuration}","${r.dayTotal}","${r.dayBreak}","${r.locked}"\n`;
+  });
+
+  csv += '\n';
+  csv += 'SUMMARY\n';
+  csv += 'Total Weekly Hours (Net),"' + formatDuration(d.weeklyTotal) + '"\n';
+  csv += 'Hours Remaining,"' + formatDuration(d.remaining) + '"\n';
+  csv += 'Highest Single Day,"' + d.maxDayName + ' (' + formatDuration(d.maxDayVal) + ')"\n';
+  csv += 'Days Over 14 Hrs,' + d.daysOver14 + '\n';
+  csv += 'Days Over 11 Hrs,' + d.daysOver11 + '\n';
+  csv += 'Weekly Status,"' + (d.weeklyTotal > 70 ? 'OVER LIMIT' : d.weeklyTotal > 60 ? 'Approaching' : 'Compliant') + '"\n';
+
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'DOT_Hours_' + new Date().toISOString().split('T')[0] + '.csv';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('CSV downloaded!');
+}
+
+function exportText() {
+  const d = buildExportData();
+  if (d.weeklyTotal === 0) { showToast('No data to export'); return; }
+
+  let text = '═══════════════════════════════════════\n';
+  text += '    DOT HOURS OF SERVICE LOG\n';
+  text += '    Week: ' + d.weekRange + '\n';
+  text += '═══════════════════════════════════════\n\n';
+
+  for (let i = 0; i < 7; i++) {
+    const dayTotal = getDayTotal(i);
+    const dayBreak = getDayBreakTotal(i);
+    if (dayTotal === 0 && data[i].every(e => !e.start && !e.end)) continue;
+
+    text += dayNames[i].toUpperCase() + '\n';
+    text += '─'.repeat(35) + '\n';
+    data[i].forEach((entry, ei) => {
+      const dur = getEntryDuration(entry);
+      const rawDur = getRawEntryDuration(entry);
+      if (entry.start || entry.end) {
+        text += '  Session ' + (ei+1) + ': ' + (entry.start || '—') + ' → ' + (entry.end || '—') + '\n';
+        if (entry.break && entry.break !== '0') {
+          text += '    Break: ' + entry.break + ' min | Gross: ' + (rawDur > 0 ? formatDuration(rawDur) : '—') + '\n';
+          text += '    Net: ' + (dur > 0 ? formatDuration(dur) : '—') + '\n';
+        } else {
+          text += '    No break | Duration: ' + (dur > 0 ? formatDuration(dur) : '—') + '\n';
+        }
+      }
+    });
+    text += '  Day Total: ' + formatDuration(dayTotal);
+    if (dayBreak > 0) text += ' (Breaks: ' + dayBreak + ' min)';
+    if (dayTotal > 14) text += ' ❌ VIOLATION';
+    else if (dayTotal > 11) text += ' ⚠️ Over 11 hrs';
+    text += '\n';
+    if (doneDays[dayIds[i]]) {
+      const lastEnd = getLastEndTime(i);
+      if (lastEnd !== null) {
+        const restHrs = dayTotal > 14 ? 34 : 10;
+        const earliest = addMinutesWithDayOffset(lastEnd, restHrs * 60);
+        const earliestDayName = dayNames[(i + earliest.daysLater) % 7];
+        text += '  Next Clock-In: ' + formatTime(earliest.time) + ' (' + earliestDayName + ')\n';
+      }
+    }
+    text += '\n';
+  }
+
+  text += '═══════════════════════════════════════\n';
+  text += 'WEEKLY SUMMARY\n';
+  text += '───────────────────────────────────────\n';
+  text += 'Total Hours (Net): ' + formatDuration(d.weeklyTotal) + '\n';
+  text += 'Hours Remaining:   ' + formatDuration(d.remaining) + '\n';
+  text += 'Highest Day:       ' + d.maxDayName + ' (' + formatDuration(d.maxDayVal) + ')' + '\n';
+  text += 'Days Over 14h:     ' + d.daysOver14 + '\n';
+  text += 'Days Over 11h:     ' + d.daysOver11 + '\n';
+  text += 'Status:            ' + (d.weeklyTotal > 70 ? 'OVER LIMIT ⚠️' : d.weeklyTotal > 60 ? 'APPROACHING LIMIT' : 'COMPLIANT ✅') + '\n';
+  text += '═══════════════════════════════════════\n';
+
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'DOT_Hours_Report_' + new Date().toISOString().split('T')[0] + '.txt';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast('Text report downloaded!');
+}
+
+function shareText() {
+  const d = buildExportData();
+  if (d.weeklyTotal === 0) { showToast('No data to share'); return; }
+
+  let text = '🚛 DOT Hours Report — ' + d.weekRange + '\n\n';
+  for (let i = 0; i < 7; i++) {
+    const dayTotal = getDayTotal(i);
+    if (dayTotal === 0) continue;
+    text += dayNames[i] + ': ' + formatDuration(dayTotal);
+    if (dayTotal > 14) text += ' ❌';
+    else if (dayTotal > 11) text += ' ⚠️';
+    text += '\n';
+  }
+  text += '\nTotal: ' + formatDuration(d.weeklyTotal) + ' / 70 hrs';
+  text += '\nRemaining: ' + formatDuration(d.remaining);
+
+  if (navigator.share) {
+    navigator.share({ title: 'DOT Hours Report', text: text })
+      .then(() => showToast('Shared!'))
+      .catch(() => {
+        navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+      });
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(() => showToast('Copied to clipboard!'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Copied to clipboard!');
+  }
+}
+
+function clearAll() {
+  if (!confirm('Clear all entries for this week?')) return;
+  data = dayIds.map(() => [{start:'',end:'',break:'0'}]);
+  doneDays = {};
+  renderAll();
+  calc();
+  showToast('All entries cleared');
+}
+
+function loadExample() {
+  data = [
+    [{start:'6:00 AM',end:'3:00 PM',break:'15'},{start:'4:00 PM',end:'7:00 PM',break:'10'}],
+    [{start:'5:30 AM',end:'12:00 PM',break:'30'},{start:'2:00 PM',end:'8:45 PM',break:'0'}],
+    [{start:'7:00 AM',end:'2:30 PM',break:'0'}],
+    [{start:'6:15 AM',end:'3:00 PM',break:'45'}],
+    [{start:'5:00 AM',end:'3:00 PM',break:'0'}],
+    [{start:'',end:'',break:'0'}],
+    [{start:'',end:'',break:'0'}]
+  ];
+  doneDays = { mon: true, tue: true, wed: true };
+  renderAll();
+  calc();
+  showToast('Example loaded — with breaks!');
+}
+
+renderAll();
+calc();
+</script>
+
+</body>
+</html>
